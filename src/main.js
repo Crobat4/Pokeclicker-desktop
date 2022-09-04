@@ -19,6 +19,8 @@ console.info('Data directory:', dataDir);
 let checkForUpdatesInterval;
 let newVersion = '0.0.0';
 let currentVersion = '0.0.0';
+let newCrobatVersion = '0.0.0';
+let currentCrobatVersion = '0.0.0';
 let windowClosed = false;
 
 let mainWindow;
@@ -44,10 +46,10 @@ function createWindow() {
   mainWindow.setTitle('PokéClicker');
 
   // Check if we've already downloaded the data, otherwise load our loading screen
-  if (fs.existsSync(`${dataDir}/pokeclicker-master/docs/index.html`)) {
-    mainWindow.loadURL(`file://${dataDir}/pokeclicker-master/docs/index.html`);
+  if (fs.existsSync(`${dataDir}/pokeclicker-master-crobat/docs/index.html`)) {
+    mainWindow.loadURL(`file://${dataDir}/pokeclicker-master-crobat/docs/index.html`);
   } else {
-    mainWindow.loadURL(`file://${__dirname}/pokeclicker-master/docs/index.html`);
+    mainWindow.loadURL(`file://${__dirname}/pokeclicker-master-crobat/docs/index.html`);
   }
 
   mainWindow.on('close', (event) => {
@@ -76,10 +78,10 @@ function createSecondaryWindow() {
   newWindow.setTitle('PokéClicker (alternate)');
 
   // Check if we've already downloaded the data, otherwise load our loading screen
-  if (fs.existsSync(`${dataDir}/pokeclicker-master/docs/index.html`)) {
-    newWindow.loadURL(`file://${dataDir}/pokeclicker-master/docs/index.html`);
+  if (fs.existsSync(`${dataDir}/pokeclicker-master-crobat/docs/index.html`)) {
+    newWindow.loadURL(`file://${dataDir}/pokeclicker-master-crobat/docs/index.html`);
   } else {
-    newWindow.loadURL(`file://${__dirname}/pokeclicker-master/docs/index.html`);
+    newWindow.loadURL(`file://${__dirname}/pokeclicker-master-crobat/docs/index.html`);
   }
 
   newWindow.on('close', (event) => {
@@ -173,14 +175,17 @@ if (!isMainInstance) {
   const isNewerVersion = (version) => {
     return version.localeCompare(currentVersion, undefined, { numeric: true }) === 1;
   }
+  const isNewerCrobatVersion = (crobatVersion) => {
+    return crobatVersion.localeCompare(currentCrobatVersion, undefined, { numeric: true }) === 1;
+  }
 
   const downloadUpdate = async (initial = false) => {
     const zipFilePath = `${dataDir}/update.zip`;
     const file = fs.createWriteStream(zipFilePath);
-    https.get('https://codeload.github.com/pokeclicker/pokeclicker/zip/master', async res => {
+    https.get('https://codeload.github.com/Crobat4/pokeclicker/zip/master-crobat', async res => {
       let cur = 0;
       try {
-        if (!initial) await mainWindow.webContents.executeJavaScript(`Notifier.notify({ title: '[UPDATER] v${newVersion}', message: 'Downloading Files...<br/>Please Wait...', timeout: 1e6 })`);
+        if (!initial) await mainWindow.webContents.executeJavaScript(`Notifier.notify({ title: '[UPDATER] Crobat v${newCrobatVersion}', message: 'Downloading Files...<br/>Please Wait...', timeout: 1e6 })`);
       }catch(e){}
 
       res.on('data', async chunk => {
@@ -193,12 +198,12 @@ if (!isMainInstance) {
       res.pipe(file).on('finish', async () => {
         try {
           if (initial) await mainWindow.webContents.executeJavaScript('setStatus("Files Downloaded!<br/>Extracting Files...")');
-          else await mainWindow.webContents.executeJavaScript(`Notifier.notify({ title: '[UPDATER] v${newVersion}', message: 'Files Downloaded!<br/>Extracting Files...', timeout: 2e4 })`);
+          else await mainWindow.webContents.executeJavaScript(`Notifier.notify({ title: '[UPDATER] Crobat v${newCrobatVersion}', message: 'Files Downloaded!<br/>Extracting Files...', timeout: 2e4 })`);
         }catch(e){}
 
         const zip = new Zip(zipFilePath);
 
-        const extracted = zip.extractEntryTo('pokeclicker-master/docs/', `${dataDir}`, true, true);
+        const extracted = zip.extractEntryTo('pokeclicker-master-crobat/docs/', `${dataDir}`, true, true);
 
         fs.unlinkSync(zipFilePath);
 
@@ -207,11 +212,12 @@ if (!isMainInstance) {
         }
 
         currentVersion = newVersion;
+        currentCrobatVersion = newCrobatVersion;
         startUpdateCheckInterval();
 
         // If this is the initial download, don't ask the user about refreshing the page
         if (initial) {
-          mainWindow.loadURL(`file://${dataDir}/pokeclicker-master/docs/index.html`);
+          mainWindow.loadURL(`file://${dataDir}/pokeclicker-master-crobat/docs/index.html`);
           return;
         }
 
@@ -224,7 +230,7 @@ if (!isMainInstance) {
         });
 
         if (userResponse == 0){
-          mainWindow.loadURL(`file://${dataDir}/pokeclicker-master/docs/index.html`);
+          mainWindow.loadURL(`file://${dataDir}/pokeclicker-master-crobat/docs/index.html`);
         }
       });
     }).on('error', (e) => {
@@ -251,7 +257,7 @@ if (!isMainInstance) {
   }
 
   const checkForUpdates = () => {
-    const request = https.get('https://raw.githubusercontent.com/pokeclicker/pokeclicker/master/package.json', res => {
+    const request = https.get('https://raw.githubusercontent.com/Crobat4/pokeclicker/master-crobat/package.json', res => {
       let body = '';
 
       res.on('data', d => {
@@ -263,9 +269,11 @@ if (!isMainInstance) {
         try {
           data = JSON.parse(body);
           newVersion = data.version;
+          newCrobatVersion = data.crobatVersion;
           const newVersionAvailable = isNewerVersion(data.version);
+          const newCrobatVersionAvailable = isNewerCrobatVersion(data.crobatVersion);
 
-          if (newVersionAvailable) {
+          if (newCrobatVersionAvailable) {
             // Stop checking for updates
             clearInterval(checkForUpdatesInterval);
             // Check if user want's to update now
@@ -282,8 +290,8 @@ if (!isMainInstance) {
 
   const shouldUpdateNowCheck = () => {
     const userResponse = dialog.showMessageBoxSync(mainWindow, {
-      title: 'PokeClicker - Update available!',
-      message: `There is a new update available (v${newVersion}),\nWould you like to download it now?\n\n`,
+      title: 'PokeClicker - Crobat Fork - Update available!',
+      message: `There is a new update available (Official v${newVersion} - Crobat v${newCrobatVersion}),\nWould you like to download it now?\n\n`,
       icon: `${__dirname}/icon.png`,
       buttons: ['Update Now', 'Remind Me', 'No (disable check)'],
       noLink: true,
@@ -312,8 +320,9 @@ if (!isMainInstance) {
 
   try {
     // If we can get our current version, start checking for updates once the game starts
-    currentVersion = JSON.parse(fs.readFileSync(`${dataDir}/pokeclicker-master/docs/package.json`).toString()).version;
-    if (currentVersion == '0.0.0') throw Error('Must re-download updated version');
+    currentVersion = JSON.parse(fs.readFileSync(`${dataDir}/pokeclicker-master-crobat/docs/package.json`).toString()).version;
+    currentCrobatVersion = JSON.parse(fs.readFileSync(`${dataDir}/pokeclicker-master-crobat/docs/package.json`).toString()).crobatVersion;
+    if (currentCrobatVersion == '0.0.0') throw Error('Must re-download updated version');
     setTimeout(() => {
       startUpdateCheckInterval(true);
     }, 1e4)
