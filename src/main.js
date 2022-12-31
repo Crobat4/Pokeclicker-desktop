@@ -4,13 +4,12 @@
 
 const { autoUpdater } = require('electron-updater');
 const { app, BrowserWindow, dialog } = require('electron');
-const path = require('path');
-const url = require('url');
 const DiscordRPC = require('discord-rpc');
 const https = require('https');
 const fs = require('fs');
 const Zip = require('adm-zip');
 const electron = require('electron');
+const clientVersion = app.getVersion();
 
 const dataDir =  (electron.app || electron.remote.app).getPath('userData');
 
@@ -26,6 +25,11 @@ let windowClosed = false;
 let mainWindow;
 
 function createWindow() {
+  // Set the Application for Desktop notifications (windows only)
+  try {
+    app.setAppUserModelId('PokéClicker');
+  } catch (e) {}
+
   mainWindow = new BrowserWindow({
     icon: __dirname + '/icon.png',
     minWidth: 300,
@@ -38,7 +42,7 @@ function createWindow() {
 
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.executeJavaScript(
-      fs.readFileSync(`${__dirname}/discord.js`).toString()
+      `(() => { DiscordRichPresence.clientVersion = '${clientVersion}' })()`
     ).catch(e=>{});
   });
 
@@ -143,9 +147,13 @@ if (!isMainInstance) {
     let discordData = {};
 
     try {
-      discordData = await mainWindow.webContents.executeJavaScript('getDiscordRP()');
+      discordData = await mainWindow.webContents.executeJavaScript('DiscordRichPresence.getRichPresenceData()');
     } catch (e) {
       console.warn('Something went wrong, could not gather discord RP data');
+    }
+
+    if (!discordData.enabled) {
+      return rpc.clearActivity();
     }
 
     // You'll need to have image assets uploaded to
@@ -190,13 +198,14 @@ if (!isMainInstance) {
       let cur = 0;
       try {
         // if (!initial) await mainWindow.webContents.executeJavaScript(`Notifier.notify({ title: '[UPDATER] v${newVersion}', message: 'Downloading Files...<br/>Please Wait...', timeout: 1e6 })`);
-        if (!initial) await mainWindow.webContents.executeJavaScript(`Notifier.notify({ title: '[UPDATER] Crobat v${newCrobatVersion}', message: 'Downloading Files...<br/>Please Wait...', timeout: 1e6 })`);
+        if (!initial) await mainWindow.webContents.executeJavaScript(`Notifier.notify({ title: '[UPDATER] Crobat v${newCrobatVersion}', message: 'Downloading Files...<br/><span id="update-message-progress">Please Wait...</span>', timeout: 1e6 })`);
       }catch(e){}
 
       res.on('data', async chunk => {
           cur += chunk.length;
           try {
             if (initial) await mainWindow.webContents.executeJavaScript(`setStatus("Downloading Files...<br/>${(cur / 1048576).toFixed(2)} mb")`);
+            else await mainWindow.webContents.executeJavaScript(`document.getElementById('update-message-progress').innerText = "${(cur / 1048576).toFixed(2)} mb"`);
           }catch(e){}
       });
 
